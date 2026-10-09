@@ -73,7 +73,7 @@ footer{padding:14px 20px;font-size:12px;color:var(--mut)}
 import {createPublicClient,createWalletClient,http,keccak256,toBytes,encodePacked,concat,parseAbi,getContractAddress} from "https://esm.sh/viem@2";
 import {foundry} from "https://esm.sh/viem@2/chains";
 
-const ACT="0x5fbdb2315678afecb367f032d93f642f64180aa3", REG="0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0";
+let ACT="0x5fbdb2315678afecb367f032d93f642f64180aa3", REG="0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0";
 const A={reg:"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",lab:"0x70997970c51812dc3a010c7d01b50e0d17dc79c8",dis:"0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",far:"0x90f79bf6eb2c4f870365e785982e1f101e93b906",intr:"0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc"};
 const NAMES={[A.reg]:"Regulador",[A.lab]:"Laboratorio",[A.dis]:"Droguería",[A.far]:"Farmacia",[A.intr]:"Intruso"};
 const nm=a=>NAMES[a.toLowerCase()]||a.slice(0,8)+"…";
@@ -92,7 +92,7 @@ const pub=createPublicClient({chain:foundry,transport:http("http://127.0.0.1:854
 const wal=createWalletClient({chain:foundry,transport:http("http://127.0.0.1:8545")});
 const $=id=>document.getElementById(id);
 const PRODUCT=keccak256(toBytes("07791234567890"));
-const COLD=getContractAddress({from:A.reg,nonce:3n}).toLowerCase(), SENSOR="0x15d34aaf54267db7d7c367839aaf71a00a2c6a65";
+let COLD=getContractAddress({from:A.reg,nonce:3n}).toLowerCase();const SENSOR="0x15d34aaf54267db7d7c367839aaf71a00a2c6a65";
 const RT="(bytes32 batchId,bytes32 readingsHash,int16 minDeciC,int16 maxDeciC,uint64 fromTs,uint64 toTs,uint256 nonce)";
 const COLDABI=parseAbi(["function registerSensor(address)",`function anchorReadings(${RT} r,bytes signature)`,"function nextNonce(address) view returns (uint256)","function anchorCount(bytes32) view returns (uint32)","function excursionCount(bytes32) view returns (uint32)",
 "event ReadingsAnchored(bytes32 indexed batchId,address indexed sensor,uint256 nonce,bytes32 readingsHash,int16 minDeciC,int16 maxDeciC,uint64 fromTs,uint64 toTs)","event ColdChainExcursion(bytes32 indexed batchId,address indexed sensor,int16 minDeciC,int16 maxDeciC)",
@@ -113,7 +113,8 @@ const exp=()=>BigInt(Math.floor(Date.now()/1000)+365*86400);
 const batchId=()=>pub.readContract({address:REG,abi:MED,functionName:"computeBatchId",args:[A.lab,PRODUCT,keccak256(toBytes(lot()))]});
 function log(c,m){const li=document.createElement("li");li.className=c;li.textContent=(c=="ok"?"✅ ":"❌ ")+m;$("log").prepend(li);}
 async function tx(who,addr,abi,fn,args,okMsg){
- try{const{request}=await pub.simulateContract({address:addr,abi,functionName:fn,args,account:who});
+ try{const code=await pub.getCode({address:addr});if(!code||code==="0x"){log("bad","No hay ningún contrato en esa dirección: la blockchain se reinició. Volvé a correr el deploy y recargá la página.");return false;}
+  const{request}=await pub.simulateContract({address:addr,abi,functionName:fn,args,account:who});
   const h=await wal.writeContract(request);await pub.waitForTransactionReceipt({hash:h});log("ok",okMsg);refresh();return true;}
  catch(e){const r=e.walk?.(x=>x?.data?.errorName);log("bad",FR[r?.data?.errorName]||("Rechazado: "+(e.shortMessage||e.message)));return false;}}
 
@@ -142,7 +143,6 @@ async function reading(hot){
   types:{Readings:[{name:"batchId",type:"bytes32"},{name:"readingsHash",type:"bytes32"},{name:"minDeciC",type:"int16"},{name:"maxDeciC",type:"int16"},{name:"fromTs",type:"uint64"},{name:"toTs",type:"uint64"},{name:"nonce",type:"uint256"}]},primaryType:"Readings",message:r});}
  catch(e){return log("bad","El sensor no pudo firmar: "+(e.shortMessage||e.message));}
  last=[r,sig];await tx(A.reg,COLD,COLDABI,"anchorReadings",[r,sig],hot?"Lectura anclada: ¡temperatura fuera de rango!":"Lectura anclada: cadena de frío en orden.");}
-}
 async function timeline(id){
  const q=(address,abi)=>pub.getLogs({address,events:abi.filter(x=>x.type=="event"),fromBlock:0n,toBlock:"latest"});
  const logs=[...await q(REG,MED),...(await hasCold()?await q(COLD,COLDABI):[])].filter(l=>l.args.batchId.toLowerCase()==id.toLowerCase()).sort((x,y)=>Number(x.blockNumber-y.blockNumber)||x.logIndex-y.logIndex);
@@ -173,7 +173,11 @@ $("sok").onclick=()=>reading(false);$("shot").onclick=()=>reading(true);
 $("scopy").onclick=async()=>{if(!last)return log("bad","Primero enviá una lectura.");tx(A.reg,COLD,COLDABI,"anchorReadings",last,"La copia fue aceptada (no debería pasar).");};
 $("newlot").onclick=()=>{$("lot").value="LOTE-"+Math.floor(1000+Math.random()*9000);$("tl").innerHTML='<li class="mut">Sin datos todavía.</li>';$("res").style.display="none";label();};
 $("lot").oninput=$("unit").onchange=label;label();
-try{$("st").textContent="Conectado a la blockchain local · bloque "+await pub.getBlockNumber();}
+let src="por defecto";
+try{const j=await(await fetch("../broadcast/Deploy.s.sol/31337/run-latest.json",{cache:"no-store"})).json();
+ const f=n=>j.transactions.filter(t=>t.transactionType==="CREATE"&&t.contractName===n).pop()?.contractAddress?.toLowerCase();
+ if(f("MedicineRegistry")){ACT=f("ActorRegistry")||ACT;REG=f("MedicineRegistry");COLD=f("ColdChainRegistry")||COLD;src="del último deploy";}}catch{}
+try{$("st").textContent="Conectado a la blockchain local · bloque "+await pub.getBlockNumber()+" · direcciones "+src+(((await pub.getCode({address:REG}))||"0x").length>2?"":" · ⚠️ CONTRATOS NO DESPLEGADOS: corré el deploy");}
 catch{$("st").textContent="❌ No se pudo conectar. ¿Está corriendo Anvil?";}
 </script>
 </body>
