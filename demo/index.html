@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PharmaTrace · Demo</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2330;--mut:#667085;--bd:#e3e7ee;--ok:#12805c;--bad:#c0392b;--warn:#b7791f;--acc:#2b5fd9}
+@media (prefers-color-scheme:dark){:root{--bg:#12161d;--card:#1a212b;--tx:#e8ecf2;--mut:#98a2b3;--bd:#2a3340}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font-size:19px;margin:0}small,.mut{color:var(--mut)}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;padding:16px 20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.card h2{font-size:15px;margin:0 0 4px}.card p{margin:0 0 10px;font-size:13px;color:var(--mut)}
+button{width:100%;margin:3px 0;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;cursor:pointer;text-align:left}
+button:hover{border-color:var(--acc)}button.p{background:var(--acc);color:#fff;border-color:var(--acc)}button.d{border-color:var(--bad);color:var(--bad)}
+input,select{padding:7px 9px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#res{margin:0 20px;padding:16px;border-radius:12px;border:2px solid var(--bd);background:var(--card);font-size:17px;display:none}
+#res.ok{border-color:var(--ok)}#res.bad{border-color:var(--bad)}#res.warn{border-color:var(--warn)}
+.lab{display:grid;grid-template-columns:repeat(7,14px);gap:2px;margin:6px 0}.lab i{width:14px;height:14px;border:1px solid var(--bd)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;padding:16px 20px}
+ul{list-style:none;margin:0;padding:0}li{padding:6px 0;border-bottom:1px solid var(--bd);font-size:14px}
+li.ok{color:var(--ok)}li.bad{color:var(--bad)}li time{display:block;font-size:12px;color:var(--mut)}
+footer{padding:14px 20px;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>💊 PharmaTrace · Trazabilidad de medicamentos</h1><small id="st">Conectando…</small></div>
+  <div class="bar">
+    <label>Lote <input id="lot" value="LOTE-A001" size="14"></label>
+    <label>Unidad <select id="unit"></select></label>
+    <button id="newlot" style="width:auto">🔄 Nuevo lote</button>
+  </div>
+</header>
+
+<main>
+  <div class="card"><h2>🏛 Regulador</h2><p>Autoriza quién puede participar y puede retirar lotes.</p>
+    <button class="p" id="setup">Habilitar laboratorio, droguería y farmacia</button>
+    <button id="susp">Suspender la farmacia</button>
+    <button id="reinst">Reactivar la farmacia</button>
+    <button class="d" id="recall">⛔ Retirar el lote del mercado</button></div>
+  <div class="card"><h2>🏭 Laboratorio</h2><p>Fabrica y registra el lote (8 unidades con número de serie).</p>
+    <button class="p" id="reg">Registrar lote</button>
+    <button id="toDis">Enviar el lote a la droguería</button></div>
+  <div class="card"><h2>🚚 Droguería</h2><p>Recibe del laboratorio y distribuye a farmacias.</p>
+    <button id="toFar">Enviar el lote a la farmacia</button></div>
+  <div class="card"><h2>💊 Farmacia</h2><p>Dispensa unidades. El sistema impide dispensar dos veces la misma.</p>
+    <button class="p" id="disp">Dispensar la unidad elegida</button></div>
+  <div class="card"><h2>🔍 Cualquier persona</h2><p>Escanea el código de la caja (acá: elegí lote y unidad).</p>
+    <button class="p" id="ver">Verificar la unidad elegida</button>
+    <button id="fake">Verificar una caja falsificada</button></div>
+  <div class="card"><h2>🕵 Intruso</h2><p>Alguien sin licencia intenta colar un lote falso.</p>
+    <button class="d" id="intr">Intentar registrar un lote falso</button></div>
+  <div class="card"><h2>🌡 Cadena de frío</h2><p>Un sensor mide la temperatura y firma sus lecturas. Rango permitido: 2–8 °C. Hacelo mientras el laboratorio tiene el lote.</p>
+    <button id="sreg">Habilitar el sensor (Laboratorio)</button>
+    <button class="p" id="sok">Lectura normal (3,2–5,8 °C)</button>
+    <button class="d" id="shot">Lectura fuera de rango (hasta 11 °C)</button>
+    <button id="scopy">Reenviar la última lectura (copia)</button></div>
+  <div class="card"><h2>📦 Etiqueta de la caja</h2><p>Ilustrativa: en la realidad es un código QR con la serie y su prueba.</p><div class="lab" id="lab"></div><small id="labt"></small></div>
+</main>
+
+<div id="res"></div>
+<div class="two">
+  <div class="card"><h2>📜 Historial del lote (auditoría)</h2><p>Leído directamente de la blockchain.</p><ul id="tl"><li class="mut">Sin datos todavía.</li></ul></div>
+  <div class="card"><h2>🧾 Registro de acciones</h2><p>Qué pasó con cada botón.</p><ul id="log"></ul></div>
+</div>
+<footer>Demo educativa en una red local de prueba: no usa dinero real y no es un sistema oficial de ningún país. La blockchain prueba que un dato no cambió desde que se registró; no prueba por sí sola que el dato original sea verdadero.</footer>
+
+<script type="module">
+import {createPublicClient,createWalletClient,http,keccak256,toBytes,encodePacked,concat,parseAbi,getContractAddress} from "https://esm.sh/viem@2";
+import {foundry} from "https://esm.sh/viem@2/chains";
+
+const ACT="0x5fbdb2315678afecb367f032d93f642f64180aa3", REG="0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0";
+const A={reg:"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",lab:"0x70997970c51812dc3a010c7d01b50e0d17dc79c8",dis:"0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",far:"0x90f79bf6eb2c4f870365e785982e1f101e93b906",intr:"0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc"};
+const NAMES={[A.reg]:"Regulador",[A.lab]:"Laboratorio",[A.dis]:"Droguería",[A.far]:"Farmacia",[A.intr]:"Intruso"};
+const nm=a=>NAMES[a.toLowerCase()]||a.slice(0,8)+"…";
+const ACTABI=parseAbi(["function licenseActor(address,uint8,uint64)","function suspendActor(address,bytes32)","function reinstateActor(address)","error AccessControlUnauthorizedAccount(address,bytes32)"]);
+const MED=parseAbi([
+"function registerBatch(bytes32,bytes32,bytes32,uint64) returns (bytes32)","function transferCustody(bytes32,address)","function dispense(bytes32,bytes32,bytes32[])","function recallBatch(bytes32,bytes32)",
+"function verifyUnit(bytes32,bytes32,bytes32[]) view returns (uint8)","function computeBatchId(address,bytes32,bytes32) pure returns (bytes32)",
+"event BatchRegistered(bytes32 indexed batchId,address indexed manufacturer,bytes32 productHash,bytes32 lotHash,bytes32 serialsRoot,uint64 expiry)",
+"event CustodyTransferred(bytes32 indexed batchId,address indexed from,address indexed to,uint8 toType)",
+"event BatchRecalled(bytes32 indexed batchId,address indexed by,bytes32 reasonHash)",
+"event UnitDispensed(bytes32 indexed batchId,bytes32 indexed serial,address indexed pharmacy)",
+"error NotAuthorized(address)","error InvalidHash()","error InvalidExpiry()","error BatchAlreadyExists(bytes32)","error BatchNotFound(bytes32)","error BatchRecalledError(bytes32)","error BatchExpired(bytes32)","error NotCustodian(bytes32,address)","error InvalidReceiver(address)","error FinalCustody(bytes32)","error InvalidProof()","error AlreadyDispensed(bytes32,bytes32)"]);
+const FR={NotAuthorized:"Rechazado: esa cuenta no tiene licencia vigente para esta operación.",NotCustodian:"Rechazado: el lote no está en poder de esa cuenta.",AlreadyDispensed:"Rechazado: esa unidad YA fue dispensada. Bloqueó una posible duplicación.",InvalidProof:"Rechazado: ese número de serie NO pertenece al lote (falsificación).",BatchAlreadyExists:"Ese lote ya estaba registrado. Cambiá el código de lote.",BatchRecalledError:"Rechazado: el lote fue retirado del mercado.",BatchNotFound:"Ese lote no existe todavía. Registralo primero.",BatchExpired:"Rechazado: el lote está vencido.",InvalidReceiver:"Rechazado: el destinatario no está habilitado como droguería o farmacia.",FinalCustody:"Rechazado: la farmacia es el último eslabón; el lote no puede seguir circulando.",AccessControlUnauthorizedAccount:"Rechazado: solo el regulador puede hacer esto.",InvalidNonce:"Rechazado: lectura repetida o fuera de orden (protección anti-copia).",SensorNotRegistered:"Rechazado: ese sensor no está habilitado (o la firma no es suya).",SensorNotInCustody:"Rechazado: el sensor pertenece a quien ya no tiene el lote.",InvalidSignature:"Rechazado: firma inválida."};
+
+const pub=createPublicClient({chain:foundry,transport:http("http://127.0.0.1:8545")});
+const wal=createWalletClient({chain:foundry,transport:http("http://127.0.0.1:8545")});
+const $=id=>document.getElementById(id);
+const PRODUCT=keccak256(toBytes("07791234567890"));
+const COLD=getContractAddress({from:A.reg,nonce:3n}).toLowerCase(), SENSOR="0x15d34aaf54267db7d7c367839aaf71a00a2c6a65";
+const RT="(bytes32 batchId,bytes32 readingsHash,int16 minDeciC,int16 maxDeciC,uint64 fromTs,uint64 toTs,uint256 nonce)";
+const COLDABI=parseAbi(["function registerSensor(address)",`function anchorReadings(${RT} r,bytes signature)`,"function nextNonce(address) view returns (uint256)","function anchorCount(bytes32) view returns (uint32)","function excursionCount(bytes32) view returns (uint32)",
+"event ReadingsAnchored(bytes32 indexed batchId,address indexed sensor,uint256 nonce,bytes32 readingsHash,int16 minDeciC,int16 maxDeciC,uint64 fromTs,uint64 toTs)","event ColdChainExcursion(bytes32 indexed batchId,address indexed sensor,int16 minDeciC,int16 maxDeciC)",
+"error NotAuthorized(address)","error SensorNotRegistered(address)","error SensorNotInCustody(bytes32,address)","error SensorAlreadyRegistered(address)","error InvalidNonce(uint256,uint256)","error InvalidSignature()","error InvalidTimeWindow()","error BatchNotFound(bytes32)"]);
+const hasCold=async()=>{const c=await pub.getCode({address:COLD});return !!c&&c!=="0x";};
+for(let i=1;i<=8;i++)$("unit").innerHTML+=`<option value="${i-1}">Unidad ${i}</option>`;
+
+// Arbol Merkle: misma regla que el contrato (hoja = keccak(serial), pares ordenados)
+const H=(a,b)=>keccak256(a<b?concat([a,b]):concat([b,a]));
+function tree(lot){const serials=[...Array(8)].map((_,i)=>keccak256(toBytes(`${lot}-U${i+1}`)));
+ let lv=serials.map(s=>keccak256(encodePacked(["bytes32"],[s])));const layers=[lv];
+ while(lv.length>1){const n=[];for(let i=0;i<lv.length;i+=2)n.push(H(lv[i],lv[i+1]));layers.push(lv=n);}
+ return{serials,layers,root:lv[0]};}
+function proof(t,idx){const p=[];let i=idx;for(let l=0;l<t.layers.length-1;l++){p.push(t.layers[l][i^1]);i>>=1;}return p;}
+
+const lot=()=>$("lot").value.trim()||"LOTE-A001", unit=()=>+$("unit").value;
+const exp=()=>BigInt(Math.floor(Date.now()/1000)+365*86400);
+const batchId=()=>pub.readContract({address:REG,abi:MED,functionName:"computeBatchId",args:[A.lab,PRODUCT,keccak256(toBytes(lot()))]});
+function log(c,m){const li=document.createElement("li");li.className=c;li.textContent=(c=="ok"?"✅ ":"❌ ")+m;$("log").prepend(li);}
+async function tx(who,addr,abi,fn,args,okMsg){
+ try{const{request}=await pub.simulateContract({address:addr,abi,functionName:fn,args,account:who});
+  const h=await wal.writeContract(request);await pub.waitForTransactionReceipt({hash:h});log("ok",okMsg);refresh();return true;}
+ catch(e){const r=e.walk?.(x=>x?.data?.errorName);log("bad",FR[r?.data?.errorName]||("Rechazado: "+(e.shortMessage||e.message)));return false;}}
+
+const show=(cls,html)=>{const r=$("res");r.className=cls;r.style.display="block";r.innerHTML=html;};
+const VR={5:["ok","✅ <b>Medicamento ORIGINAL.</b> La unidad pertenece a un lote registrado y todavía no fue dispensada."],
+4:["warn","⚠️ <b>Esta unidad YA fue dispensada.</b> Si la tenés en la mano, podría ser una copia."],
+3:["bad","❌ <b>NO ORIGINAL.</b> Este número de serie no pertenece al lote registrado."],
+2:["warn","⏳ <b>Lote vencido.</b> No debe usarse."],1:["bad","⛔ <b>Lote retirado del mercado.</b> No lo uses."],0:["warn","❓ Lote desconocido: nadie lo registró."]};
+async function verify(fake){
+ const id=await batchId(),t=tree(lot());
+ const serial=fake?keccak256(toBytes("SERIE-FALSA")):t.serials[unit()];
+ const r=await pub.readContract({address:REG,abi:MED,functionName:"verifyUnit",args:[id,serial,proof(t,unit())]});
+ const[c,h]=VR[Number(r)];show(c,h+await coldInfo(id));timeline(id);}
+async function coldInfo(id){if(!await hasCold())return"";
+ const g=f=>pub.readContract({address:COLD,abi:COLDABI,functionName:f,args:[id]}),n=Number(await g("anchorCount")),e=Number(await g("excursionCount"));
+ return n?`<br><small>🌡 ${n} lectura(s) de temperatura · ${e?"⚠️ "+e+" fuera de rango":"sin alertas de frío"}</small>`:"<br><small>🌡 Sin lecturas de temperatura registradas.</small>";}
+function label(){const h=tree(lot()).serials[unit()].slice(2);$("lab").innerHTML=[...Array(49)].map((_,i)=>`<i style="background:${parseInt(h[i],16)>7?"var(--tx)":"transparent"}"></i>`).join("");
+ $("labt").textContent=`${lot()} · Unidad ${unit()+1} · serie ${h.slice(0,10)}…`;}
+let last=null;
+async function reading(hot){
+ if(!await hasCold())return log("bad","Falta el módulo de cadena de frío: volvé a desplegar con el Deploy actualizado.");
+ const id=await batchId(),nonce=await pub.readContract({address:COLD,abi:COLDABI,functionName:"nextNonce",args:[SENSOR]});
+ const to=(await pub.getBlock()).timestamp,from=to-3600n,mn=hot?31:32,mx=hot?110:58;
+ const r={batchId:id,readingsHash:keccak256(toBytes(JSON.stringify({lote:lot(),from:Number(from),to:Number(to),mn,mx,nonce:Number(nonce)}))),minDeciC:mn,maxDeciC:mx,fromTs:from,toTs:to,nonce};
+ let sig;try{sig=await wal.signTypedData({account:SENSOR,domain:{name:"PharmaTraceColdChain",version:"1",chainId:31337,verifyingContract:COLD},
+  types:{Readings:[{name:"batchId",type:"bytes32"},{name:"readingsHash",type:"bytes32"},{name:"minDeciC",type:"int16"},{name:"maxDeciC",type:"int16"},{name:"fromTs",type:"uint64"},{name:"toTs",type:"uint64"},{name:"nonce",type:"uint256"}]},primaryType:"Readings",message:r});}
+ catch(e){return log("bad","El sensor no pudo firmar: "+(e.shortMessage||e.message));}
+ last=[r,sig];await tx(A.reg,COLD,COLDABI,"anchorReadings",[r,sig],hot?"Lectura anclada: ¡temperatura fuera de rango!":"Lectura anclada: cadena de frío en orden.");}
+}
+async function timeline(id){
+ const q=(address,abi)=>pub.getLogs({address,events:abi.filter(x=>x.type=="event"),fromBlock:0n,toBlock:"latest"});
+ const logs=[...await q(REG,MED),...(await hasCold()?await q(COLD,COLDABI):[])].filter(l=>l.args.batchId.toLowerCase()==id.toLowerCase()).sort((x,y)=>Number(x.blockNumber-y.blockNumber)||x.logIndex-y.logIndex);
+ const t=tree(lot()),ul=$("tl");ul.innerHTML=logs.length?"":'<li class="mut">Este lote no tiene movimientos registrados.</li>';
+ for(const l of logs){const b=await pub.getBlock({blockNumber:l.blockNumber}),a=l.args;let txt,c="";
+  if(l.eventName=="BatchRegistered")txt=`🏭 Lote registrado por ${nm(a.manufacturer)}`;
+  else if(l.eventName=="CustodyTransferred")txt=`🚚 Custodia: ${nm(a.from)} → ${nm(a.to)}`;
+  else if(l.eventName=="UnitDispensed"){const k=t.serials.indexOf(a.serial);txt=`💊 ${k>=0?"Unidad "+(k+1):"Una unidad"} dispensada por ${nm(a.pharmacy)}`;}
+  else if(l.eventName=="ReadingsAnchored")txt=`🌡 Lectura firmada por el sensor: ${a.minDeciC/10}–${a.maxDeciC/10} °C`;
+  else if(l.eventName=="ColdChainExcursion"){txt="🔥 ALERTA: temperatura fuera del rango 2–8 °C";c="bad";}
+  else{txt=`⛔ Lote retirado del mercado por ${nm(a.by)}`;c="bad";}
+  ul.insertAdjacentHTML("beforeend",`<li class="${c}">${txt}<time>${new Date(Number(b.timestamp)*1000).toLocaleString()} · bloque ${l.blockNumber}</time></li>`);}}
+async function refresh(){try{timeline(await batchId());}catch{}}
+
+$("setup").onclick=async()=>{for(const[a,t,n]of[[A.lab,1,"Laboratorio"],[A.dis,2,"Droguería"],[A.far,3,"Farmacia"]])await tx(A.reg,ACT,ACTABI,"licenseActor",[a,t,exp()],`${n} habilitado/a por el regulador.`);};
+$("susp").onclick=()=>tx(A.reg,ACT,ACTABI,"suspendActor",[A.far,keccak256(toBytes("inspeccion"))],"Farmacia suspendida: ya no puede operar.");
+$("reinst").onclick=()=>tx(A.reg,ACT,ACTABI,"reinstateActor",[A.far],"Farmacia reactivada.");
+$("recall").onclick=async()=>tx(A.reg,REG,MED,"recallBatch",[await batchId(),keccak256(toBytes("retiro"))],"Lote retirado del mercado.");
+$("reg").onclick=()=>tx(A.lab,REG,MED,"registerBatch",[PRODUCT,keccak256(toBytes(lot())),tree(lot()).root,exp()],`Lote ${lot()} registrado con 8 unidades.`);
+$("toDis").onclick=async()=>tx(A.lab,REG,MED,"transferCustody",[await batchId(),A.dis],"Lote enviado a la droguería.");
+$("toFar").onclick=async()=>tx(A.dis,REG,MED,"transferCustody",[await batchId(),A.far],"Lote enviado a la farmacia.");
+$("disp").onclick=async()=>{const t=tree(lot());tx(A.far,REG,MED,"dispense",[await batchId(),t.serials[unit()],proof(t,unit())],`Unidad ${unit()+1} dispensada.`);};
+$("ver").onclick=()=>verify(false);$("fake").onclick=()=>verify(true);
+$("intr").onclick=()=>tx(A.intr,REG,MED,"registerBatch",[PRODUCT,keccak256(toBytes("LOTE-FALSO")),tree("LOTE-FALSO").root,exp()],"El intruso registró un lote (no debería pasar).");
+
+$("sreg").onclick=async()=>{if(!await hasCold())return log("bad","Falta el módulo de cadena de frío: volvé a desplegar con el Deploy actualizado.");tx(A.lab,COLD,COLDABI,"registerSensor",[SENSOR],"Sensor de temperatura habilitado por el laboratorio.");};
+$("sok").onclick=()=>reading(false);$("shot").onclick=()=>reading(true);
+$("scopy").onclick=async()=>{if(!last)return log("bad","Primero enviá una lectura.");tx(A.reg,COLD,COLDABI,"anchorReadings",last,"La copia fue aceptada (no debería pasar).");};
+$("newlot").onclick=()=>{$("lot").value="LOTE-"+Math.floor(1000+Math.random()*9000);$("tl").innerHTML='<li class="mut">Sin datos todavía.</li>';$("res").style.display="none";label();};
+$("lot").oninput=$("unit").onchange=label;label();
+try{$("st").textContent="Conectado a la blockchain local · bloque "+await pub.getBlockNumber();}
+catch{$("st").textContent="❌ No se pudo conectar. ¿Está corriendo Anvil?";}
+</script>
+</body>
+</html>
